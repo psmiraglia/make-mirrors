@@ -1,5 +1,7 @@
 import requests
+import shutil
 
+from git import Repo
 from settings import GH_USER, GH_TOKEN
 from settings import BB_USER, BB_TOKEN, BB_TEAM
 
@@ -34,10 +36,36 @@ def create_bb_repo(repo):
 
 
 def push_gh_to_bb(repo):
-    print("git clone %s" % repo[1])
-    print(("git remote add bb https://%s:%s@bitbucket.org/%s/%s.git") %
-          (BB_USER, BB_TOKEN, BB_USER, repo[0]))
-    print("git push --mirror bb")
+    #
+    # clone repository in /tmp
+    #
+    #  git clone --mirror https://github.com/<user>/<repo>.git /tmp/<repo>
+    #
+    r_path = "/tmp/%s" % repo[0]
+    r = Repo.clone_from(repo[1], r_path, mirror=True)
+
+    #
+    # add BitBucket remote
+    #
+    #   git remote add bb https://<user>:<token>@bitbucket.org/<team>/<repo>.git
+    #
+    bb_url = (("https://%(user)s:%(token)s@bitbucket.org/%(team)s/%(repo)s.git") %
+              {"user": BB_USER, "token": BB_TOKEN, "team": BB_TEAM, "repo": repo[0]})
+    bb = r.create_remote("bb", bb_url)
+
+    #
+    # push
+    #
+    #   git push --mirror bb
+    #
+    bb.push(mirror=True)
+
+    #
+    # cleanup
+    #
+    #   rm -fr /tmp/<repo>
+    #
+    shutil.rmtree(r_path)
 
 
 def make_mirrors(repos):
@@ -48,7 +76,6 @@ def make_mirrors(repos):
 
 def main():
     repos = get_gh_repos()
-    repos = [("aaa", ""), ("bbb", ""), ("ccc", "")]
     make_mirrors(repos)
 
 if __name__ == "__main__":
