@@ -1,4 +1,5 @@
 import logging
+import re
 import requests
 import shutil
 
@@ -10,7 +11,7 @@ GH_API = "https://api.github.com"
 BB_API = "https://api.bitbucket.org/2.0"
 
 
-fmt = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+fmt = logging.Formatter('[%(levelname)1.1s] %(name)s: %(message)s')
 
 sh = logging.StreamHandler()
 sh.setLevel(logging.DEBUG)
@@ -26,17 +27,17 @@ def get_gh_repos():
     url = "%s/user/repos" % GH_API
     params = {"visibility": "all", "affiliation": "owner"}
     auth = (GH_USER, GH_TOKEN)
-    log.info("Getting repos for '%s'" % GH_USER)
+    log.info("Getting GitHub repos for '%s'..." % GH_USER)
     r = requests.get(url, auth=auth, params=params)
     while "next" in r.links:
         for repo in r.json():
             gh_repos.append((repo["name"], repo["clone_url"]))
-            log.debug("Got '%s'" % repo["name"])
+            log.debug("  %s (%s)" % (repo["name"], repo["clone_url"]))
         url = r.links["next"]["url"]
         r = requests.get(url, auth=auth)
     for repo in r.json():
         gh_repos.append((repo["name"], repo["clone_url"]))
-        log.debug("Got '%s'" % repo["name"])
+        log.debug("  %s (%s)" % (repo["name"], repo["clone_url"]))
     return gh_repos
 
 
@@ -45,10 +46,13 @@ def create_bb_repo(repo):
     auth = (BB_USER, BB_TOKEN)
     headers = {"content-type": "application/json"}
     data = {"scm": "git", "is_private": True, "fork_policy": "no_public_forks"}
+    log.info("Creating %s/%s on BitBucket" % (BB_TEAM, repo[0]))
     r = requests.get(url, auth=auth)
     if r.status_code == requests.codes.not_found:
         r = requests.post(url, auth=auth, headers=headers, json=data)
-        log.info("Created %s/%s on BitBucket" % (BB_TEAM, repo[0]))
+        log.debug("Repo %s/%s created" % (BB_TEAM, repo[0]))
+    else:
+        log.debug("Repo %s/%s already present" % (BB_TEAM, repo[0]))
 
 
 def push_gh_to_bb(repo):
@@ -68,7 +72,8 @@ def push_gh_to_bb(repo):
     #
     bb_url = (("https://%(user)s:%(token)s@bitbucket.org/%(team)s/%(repo)s.git") %
               {"user": BB_USER, "token": BB_TOKEN, "team": BB_TEAM, "repo": repo[0]})
-    log.info("Setting 'bb' remote to '%s'" % bb_url)
+    log.info(("Setting 'bb' remote to '%s'") %
+             re.sub(r'(https://.*:)(.*)(@.*)', r'\g<1>********\g<3>', bb_url))
     bb = r.create_remote("bb", bb_url)
 
     #
@@ -76,7 +81,10 @@ def push_gh_to_bb(repo):
     #
     #   git push --mirror bb
     #
-    log.info("Pushing '%s' to '%s'" % (repo[0], bb_url))
+    log.info(("Pushing '%s' to '%s'") %
+             (repo[0], re.sub(r'(https://.*:)(.*)(@.*)',
+                              r'\g<1>********\g<3>',
+                              bb_url)))
     bb.push(mirror=True)
 
     #
