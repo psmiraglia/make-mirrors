@@ -1,11 +1,11 @@
 import logging
+import os
 import re
 import requests
 import shutil
+import sys
 
 from git import Repo
-from settings import GH_USER, GH_TOKEN
-from settings import BB_USER, BB_TOKEN, BB_TEAM
 
 GH_API = "https://api.github.com"
 BB_API = "https://api.bitbucket.org/2.0"
@@ -20,6 +20,46 @@ sh.setFormatter(fmt)
 log = logging.getLogger('gh2bb')
 log.setLevel(logging.DEBUG)
 log.addHandler(sh)
+
+BB_TEAM = os.getenv("BB_TEAM")
+if BB_TEAM is None:
+    try:
+        from settings import BB_TEAM
+    except:
+        log.error("BB_TEAM envvar must be set!")
+        sys.exit(1)
+
+BB_TOKEN = os.getenv("BB_TOKEN")
+if BB_TOKEN is None:
+    try:
+        from settings import BB_TOKEN
+    except:
+        log.error("BB_TOKEN envvar must be set!")
+        sys.exit(1)
+
+BB_USER = os.getenv("BB_USER")
+if BB_USER is None:
+    try:
+        from settings import BB_USER
+    except:
+        log.error("BB_USER envvar must be set!")
+        sys.exit(1)
+
+GH_TOKEN = os.getenv("GH_TOKEN")
+if GH_TOKEN is None:
+    try:
+        from settings import GH_TOKEN
+    except:
+        log.error("GH_TOKEN envvar must be set!")
+        sys.exit(1)
+
+GH_USER = os.getenv("GH_USER")
+if GH_USER is None:
+    try:
+        from settings import GH_USER
+    except:
+        log.error("GH_USER envvar must be set!")
+        sys.exit(1)
 
 
 def get_gh_repos():
